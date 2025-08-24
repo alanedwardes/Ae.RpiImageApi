@@ -1,8 +1,10 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, redirect
 import subprocess
 import os
 import tempfile
 import json
+import uuid
+import threading
 from pathlib import Path
 
 app = Flask(__name__)
@@ -35,8 +37,9 @@ def generate_image():
         seed = data.get('seed', -1)
         negative_prompt = data.get('negative_prompt', '')
         
-        # Create temporary output file
-        output_filename = f"generated_{os.getpid()}_{hash(prompt) % 10000}.png"
+        # Create unique output file in configured directory
+        unique_id = str(uuid.uuid4())
+        output_filename = f"generated_{unique_id}.png"
         output_path = os.path.join(CONFIG['output_dir'], output_filename)
         
         # Build command
@@ -66,13 +69,21 @@ def generate_image():
         if not os.path.exists(output_path):
             return jsonify({'error': 'Output file not found'}), 500
         
-        # Return the generated image
-        return send_file(output_path, mimetype='image/png')
+        # Redirect to the generated image
+        return redirect(f'/images/{output_filename}')
         
     except subprocess.TimeoutExpired:
         return jsonify({'error': 'Image generation timed out'}), 408
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/images/<filename>', methods=['GET'])
+def serve_image(filename):
+    file_path = os.path.join(CONFIG['output_dir'], filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype='image/png')
+    else:
+        return jsonify({'error': 'Image not found'}), 404
 
 @app.route('/health', methods=['GET'])
 def health():
