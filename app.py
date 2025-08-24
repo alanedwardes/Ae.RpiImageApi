@@ -5,6 +5,7 @@ import tempfile
 import json
 import uuid
 import sys
+import shlex
 from pathlib import Path
 
 app = Flask(__name__)
@@ -46,14 +47,14 @@ def generate_image():
         cmd = [
             CONFIG['sd_executable_path'],
             '--models-path', CONFIG['models_path'],
-            '--prompt', prompt,
+            '--prompt', shlex.quote(prompt),
             '--steps', str(steps),
             '--seed', str(seed),
             '--output', output_path
         ]
         
         if negative_prompt:
-            cmd.extend(['--neg-prompt', negative_prompt])
+            cmd.extend(['--neg-prompt', shlex.quote(negative_prompt)])
         
         command_str = ' '.join(cmd)
         print(f"Running command: {command_str}", file=sys.stdout, flush=True)
