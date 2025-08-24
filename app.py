@@ -1,13 +1,16 @@
-from flask import Flask, request, send_file, jsonify, redirect
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse
+from pydantic import BaseModel
 import subprocess
 import os
 import tempfile
 import json
 import uuid
-import threading
+import sys
 from pathlib import Path
+from typing import Optional
 
-app = Flask(__name__)
+app = FastAPI()
 
 # Configuration
 CONFIG = {
@@ -22,21 +25,20 @@ def load_config():
         with open(config_file, 'r') as f:
             CONFIG.update(json.load(f))
 
-@app.route('/generate', methods=['POST'])
-def generate_image():
+class GenerateRequest(BaseModel):
+    prompt: str
+    steps: Optional[int] = 1
+    width: Optional[int] = 512
+    height: Optional[int] = 512
+    seed: Optional[int] = -1
+    negative_prompt: Optional[str] = ''
+
+@app.post("/generate")
+async def generate_image(request: GenerateRequest):
+    print("=== GENERATE ENDPOINT CALLED ===")
+    print(f"Request data: {request}")
+    
     try:
-        data = request.get_json()
-        
-        if not data or 'prompt' not in data:
-            return jsonify({'error': 'Missing prompt in request body'}), 400
-        
-        prompt = data['prompt']
-        steps = data.get('steps', 1)
-        width = data.get('width', 512)
-        height = data.get('height', 512)
-        seed = data.get('seed', -1)
-        negative_prompt = data.get('negative_prompt', '')
-        
         # Create unique output file in configured directory
         unique_id = str(uuid.uuid4())
         output_filename = f"generated_{unique_id}.png"
@@ -47,50 +49,52 @@ def generate_image():
             CONFIG['sd_executable_path'],
             '--turbo',
             '--models-path', CONFIG['models_path'],
-            '--prompt', prompt,
-            '--steps', str(steps),
-            '--seed', str(seed),
-            '--res', f"{width}x{height}",
+            '--prompt', request.prompt,
+            '--steps', str(request.steps),
+            '--seed', str(request.seed),
+            '--res', f"{request.width}x{request.height}",
             '--output', output_path
         ]
         
-        if negative_prompt:
-            cmd.extend(['--neg-prompt', negative_prompt])
+        if request.negative_prompt:
+            cmd.extend(['--neg-prompt', request.negative_prompt])
         
-        print(f"Running command: {' '.join(cmd)}")
+        command_str = ' '.join(cmd)
+        print(f"Running command: {command_str}")
         
         # Execute command
         result = subprocess.run(cmd, text=True, timeout=900)
         
+        print(f"Command completed with return code: {result.returncode}")
+        
         if result.returncode != 0:
-            return jsonify({
-                'error': 'Image generation failed'
-            }), 500
+            raise HTTPException(status_code=500, detail="Image generation failed")
         
         # Check if output file exists
         if not os.path.exists(output_path):
-            return jsonify({'error': 'Output file not found'}), 500
+            raise HTTPException(status_code=500, detail="Output file not found")
         
         # Redirect to the generated image
-        return redirect(f'/images/{output_filename}')
+        return RedirectResponse(url=f"/images/{output_filename}")
         
     except subprocess.TimeoutExpired:
-        return jsonify({'error': 'Image generation timed out'}), 408
+        raise HTTPException(status_code=408, detail="Image generation timed out")
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.route('/images/<filename>', methods=['GET'])
-def serve_image(filename):
+@app.get("/images/{filename}")
+async def serve_image(filename: str):
     file_path = os.path.join(CONFIG['output_dir'], filename)
     if os.path.exists(file_path):
-        return send_file(file_path, mimetype='image/png')
+        return FileResponse(file_path, media_type="image/png")
     else:
-        return jsonify({'error': 'Image not found'}), 404
+        raise HTTPException(status_code=404, detail="Image not found")
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'healthy'})
+@app.get("/health")
+async def health():
+    return {"status": "healthy"}
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     load_config()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5000)
