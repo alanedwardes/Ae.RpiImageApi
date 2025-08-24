@@ -30,7 +30,6 @@ def generate_image():
         
         prompt = data['prompt']
         steps = data.get('steps', 1)
-        cfg_scale = data.get('cfg_scale', 7.0)
         width = data.get('width', 512)
         height = data.get('height', 512)
         seed = data.get('seed', -1)
@@ -47,15 +46,13 @@ def generate_image():
             '--models-path', CONFIG['models_path'],
             '--prompt', prompt,
             '--steps', str(steps),
-            '--cfg-scale', str(cfg_scale),
-            '--width', str(width),
-            '--height', str(height),
             '--seed', str(seed),
+            '--res', f"{width}x{height}",
             '--output', output_path
         ]
         
         if negative_prompt:
-            cmd.extend(['--negative-prompt', negative_prompt])
+            cmd.extend(['--neg-prompt', negative_prompt])
         
         # Execute command
         result = subprocess.run(cmd, text=True, timeout=900)
