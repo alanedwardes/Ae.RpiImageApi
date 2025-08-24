@@ -28,9 +28,6 @@ def generate_image():
         if not data or 'prompt' not in data:
             return jsonify({'error': 'Missing prompt in request body'}), 400
         
-        if 'steps' not in data:
-            return jsonify({'error': 'Missing steps in request body'}), 400
-        
         prompt = data['prompt']
         steps = data.get('steps', 1)
         cfg_scale = data.get('cfg_scale', 7.0)
