@@ -34,8 +34,6 @@ def generate_image():
         
         prompt = data['prompt']
         steps = data.get('steps', 1)
-        width = data.get('width', 512)
-        height = data.get('height', 512)
         seed = data.get('seed', -1)
         negative_prompt = data.get('negative_prompt', '')
         
@@ -47,12 +45,10 @@ def generate_image():
         # Build command
         cmd = [
             CONFIG['sd_executable_path'],
-            '--turbo',
             '--models-path', CONFIG['models_path'],
             '--prompt', prompt,
             '--steps', str(steps),
             '--seed', str(seed),
-            '--res', f"{width}x{height}",
             '--output', output_path
         ]
         
