@@ -14,7 +14,8 @@ app = Flask(__name__)
 CONFIG = {
     'sd_executable_path': '',
     'models_path': '',
-    'output_dir': tempfile.gettempdir()
+    'output_dir': tempfile.gettempdir(),
+    'extra_params': []
 }
 
 def load_config():
@@ -55,6 +56,10 @@ def generate_image():
         
         if negative_prompt:
             cmd.extend(['--neg-prompt', shlex.quote(negative_prompt)])
+        
+        # Add extra parameters from config
+        if CONFIG.get('extra_params'):
+            cmd.extend(CONFIG['extra_params'])
         
         command_str = ' '.join(cmd)
         print(f"Running command: {command_str}", file=sys.stdout, flush=True)
