@@ -1,0 +1,76 @@
+from flask import Flask, request, send_file, jsonify
+import subprocess
+import os
+import tempfile
+import json
+from pathlib import Path
+
+app = Flask(__name__)
+
+# Configuration
+CONFIG = {
+    'sd_executable_path': '',
+    'models_path': '',
+    'steps': 1,
+    'output_dir': tempfile.gettempdir()
+}
+
+def load_config():
+    config_file = Path('config.json')
+    if config_file.exists():
+        with open(config_file, 'r') as f:
+            CONFIG.update(json.load(f))
+
+@app.route('/generate', methods=['POST'])
+def generate_image():
+    try:
+        data = request.get_json()
+        
+        if not data or 'prompt' not in data:
+            return jsonify({'error': 'Missing prompt in request body'}), 400
+        
+        prompt = data['prompt']
+        steps = data.get('steps', CONFIG['steps'])
+        
+        # Create temporary output file
+        output_filename = f"generated_{os.getpid()}_{hash(prompt) % 10000}.png"
+        output_path = os.path.join(CONFIG['output_dir'], output_filename)
+        
+        # Build command
+        cmd = [
+            CONFIG['sd_executable_path'],
+            '--turbo',
+            '--models-path', CONFIG['models_path'],
+            '--prompt', prompt,
+            '--steps', str(steps),
+            '--output', output_path
+        ]
+        
+        # Execute command
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        
+        if result.returncode != 0:
+            return jsonify({
+                'error': 'Image generation failed',
+                'stderr': result.stderr
+            }), 500
+        
+        # Check if output file exists
+        if not os.path.exists(output_path):
+            return jsonify({'error': 'Output file not found'}), 500
+        
+        # Return the generated image
+        return send_file(output_path, mimetype='image/png')
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Image generation timed out'}), 408
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'healthy'})
+
+if __name__ == '__main__':
+    load_config()
+    app.run(host='0.0.0.0', port=5000, debug=False)
