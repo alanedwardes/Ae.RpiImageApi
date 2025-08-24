@@ -57,6 +57,8 @@ def generate_image():
         if negative_prompt:
             cmd.extend(['--neg-prompt', negative_prompt])
         
+        print(f"Running command: {' '.join(cmd)}")
+        
         # Execute command
         result = subprocess.run(cmd, text=True, timeout=900)
         
