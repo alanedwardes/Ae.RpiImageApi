@@ -48,14 +48,14 @@ def generate_image():
         cmd = [
             CONFIG['sd_executable_path'],
             '--models-path', CONFIG['models_path'],
-            '--prompt', shlex.quote(prompt),
+            '--prompt', prompt,
             '--steps', str(steps),
             '--seed', str(seed),
             '--output', output_path
         ]
         
         if negative_prompt:
-            cmd.extend(['--neg-prompt', shlex.quote(negative_prompt)])
+            cmd.extend(['--neg-prompt', negative_prompt])
         
         # Add extra parameters from config
         if CONFIG.get('extra_params'):
