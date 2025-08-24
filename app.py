@@ -64,18 +64,15 @@ def generate_image():
         command_str = ' '.join(cmd)
         print(f"Running command: {command_str}", file=sys.stdout, flush=True)
         
-        # Execute command
-        result = subprocess.run(cmd, text=True, capture_output=True, timeout=900)
+        # Execute command with real-time output
+        print(f"Starting command execution...", file=sys.stdout, flush=True)
+        result = subprocess.run(cmd, text=True, timeout=900)
         
         print(f"Command completed with return code: {result.returncode}", file=sys.stdout, flush=True)
-        print(f"Command stdout: {result.stdout}", file=sys.stdout, flush=True)
-        print(f"Command stderr: {result.stderr}", file=sys.stdout, flush=True)
         
         if result.returncode != 0:
             return jsonify({
-                'error': 'Image generation failed',
-                'stderr': result.stderr,
-                'stdout': result.stdout
+                'error': 'Image generation failed'
             }), 500
         
         # Check if output file exists
