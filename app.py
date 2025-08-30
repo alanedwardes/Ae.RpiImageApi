@@ -6,9 +6,13 @@ import json
 import uuid
 import sys
 import shlex
+import threading
 from pathlib import Path
 
 app = Flask(__name__)
+
+# Concurrency control - limit to 2 concurrent image generations
+generation_semaphore = threading.Semaphore(2)
 
 # Configuration
 CONFIG = {
@@ -27,6 +31,11 @@ def load_config():
 @app.route('/generate', methods=['POST'])
 def generate_image():
     print("=== GENERATE ENDPOINT CALLED ===", file=sys.stdout, flush=True)
+    
+    # Acquire semaphore to limit concurrent generations
+    if not generation_semaphore.acquire(blocking=False):
+        return jsonify({'error': 'Server is busy. Maximum concurrent generations (2) reached. Please try again later.'}), 429
+    
     try:
         data = request.get_json()
         print(f"Request data: {data}", file=sys.stdout, flush=True)
@@ -86,6 +95,9 @@ def generate_image():
         return jsonify({'error': 'Image generation timed out'}), 408
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        # Always release the semaphore when done
+        generation_semaphore.release()
 
 @app.route('/images/<filename>', methods=['GET'])
 def serve_image(filename):
