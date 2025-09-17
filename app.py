@@ -75,7 +75,7 @@ def generate_image():
         
         # Execute command with real-time output
         print(f"Starting command execution...", file=sys.stdout, flush=True)
-        result = subprocess.run(cmd, text=True, timeout=900)
+        result = subprocess.run(cmd, text=True)
         
         print(f"Command completed with return code: {result.returncode}", file=sys.stdout, flush=True)
         
